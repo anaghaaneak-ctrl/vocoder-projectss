@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smart Locker QR Scanner</title>
+</head>
+<body>
+
+<h2>Scan QR Code</h2>
+<video id="video" width="300" height="300"></video>
+<p id="result">Waiting for QR...</p>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+  const result = document.getElementById("result");
+
+  const qr = new Html5Qrcode("video");
+
+  Html5Qrcode.getCameras().then(devices => {
+    if (devices && devices.length) {
+      qr.start(
+        devices[0].id,
+        { fps: 10, qrbox: 250 },
+        qrData => {
+          result.innerText = "QR Detected: " + qrData;
+
+          // Send QR to backend
+          fetch("http://localhost:5000/api/verifyQR", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ qrData })
+          })
+          .then(res => res.json())
+          .then(data => {
+            alert(JSON.stringify(data));
+          });
+
+          qr.stop(); // stop scanning after one scan
+        }
+      );
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,62 @@
+<h2>QR Scanner</h2>
+
+<video id="video" width="300" height="250" autoplay></video>
+<canvas id="qr-canvas" width="300" height="250" style="display:none"></canvas>
+
+<p id="qr-result" style="margin-top:10px; font-weight:bold; font-size:18px; color:green;">
+QR Result: (waiting...)
+</p>
+
+<button onclick="startScanner()">Start Scanner</button>
+<button onclick="stopScanner()">Stop Scanner</button>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+
+<script>
+    let video = document.getElementById("video");
+    let canvas = document.getElementById("qr-canvas");
+    let ctx = canvas.getContext("2d");
+    let stream;
+    let scanning = false;
+
+    function startScanner() {
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(function (s) {
+                stream = s;
+                video.srcObject = stream;
+                scanning = true;
+                scanLoop();
+            });
+    }
+
+    function stopScanner() {
+        scanning = false;
+        if (stream) stream.getTracks().forEach(track => track.stop());
+    }
+
+    function scanLoop() {
+        if (!scanning) return;
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let code = jsQR(imageData.data, imageData.width, imageData.height);
+
+        if (code) {
+            document.getElementById("qr-result").innerText = "QR Detected: " + code.data;
+            stopScanner();
+
+            // Send QR to backend
+            fetch("http://localhost:5000/api/verifyQR", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ qrData: code.data })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+            });
+        }
+
+        requestAnimationFrame(scanLoop);
+    }
+</script>
